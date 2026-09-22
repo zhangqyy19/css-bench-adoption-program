@@ -40,6 +40,30 @@ const STEPS = [
   ["We take it from there", "The Alliance will be in touch about payment, and your plaque will be installed within a few weeks."],
 ];
 
+// From the VCPA bench adoption FAQ; only the points not already covered above
+const FAQ = [
+  {
+    q: "When does work on my plaque begin?",
+    a: "Once full payment has been made and you have provided the plaque text. The Alliance cannot guarantee a completion date, but aims for six to eight weeks on an existing bench and about three months for a new one.",
+  },
+  {
+    q: "Where can a new bench go?",
+    a: "There are a limited number of pre-approved locations on the perimeter of the Parade Ground. The Alliance can schedule a call or a site visit to look at them with you.",
+  },
+  {
+    q: "What kinds of benches are there?",
+    a: "World's Fair benches and concrete-base benches, each in 4 ft and 8 ft sizes. On an 8 ft bench your plaque goes on one side, and the other side can be adopted separately.",
+  },
+  {
+    q: "What if something happens to my bench or plaque?",
+    a: "Email info@vancortlandt.org. The Alliance makes repairs during the ten-year term.",
+  },
+  {
+    q: "Can I adopt a tree or sponsor a planting?",
+    a: "Tree adoptions are not offered at this time. To sponsor a plant bed for one growing season, contact info@vancortlandt.org.",
+  },
+];
+
 const button = "inline-block rounded-sm bg-pine-700 px-7 py-3 text-lg text-cream-50 shadow-md hover:bg-pine-600";
 
 export default async function IntroPage() {
@@ -97,7 +121,7 @@ export default async function IntroPage() {
         </div>
       </section>
 
-      <section className="bg-pine-50 py-16">
+      <section className="border-y border-pine-100 py-16">
         <div className="wrap grid gap-10 md:grid-cols-3">
           {DETAILS.map((detail) => (
             <div key={detail.title} className="border-l-2 border-pine-400 pl-5">
@@ -105,6 +129,31 @@ export default async function IntroPage() {
               <p className="mt-2 text-ink-700">{detail.body}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="bg-pine-50 py-16">
+        <div className="wrap max-w-3xl">
+          <p className="eyebrow text-center">Good to know</p>
+          <h2 className="mt-2 text-center text-3xl text-pine-900">Questions people ask</h2>
+          <dl className="mt-8 divide-y divide-pine-200">
+            {FAQ.map((item) => (
+              <div key={item.q} className="py-5">
+                <dt className="text-xl text-pine-900">{item.q}</dt>
+                <dd className="mt-1 text-ink-700">{item.a}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-8 text-center text-ink-700">
+            Something else? Write to the Alliance at{" "}
+            <a
+              href="mailto:info@vancortlandt.org"
+              className="inline-block border-b-2 border-brass-500 text-pine-800 hover:border-pine-800 hover:text-pine-900"
+            >
+              info@vancortlandt.org
+            </a>
+            .
+          </p>
         </div>
       </section>
 
@@ -127,7 +176,7 @@ export default async function IntroPage() {
         </Link>
         <p className="mt-6 text-sm text-ink-500">
           Questions? Write to{" "}
-          <a href="mailto:info@vancortlandt.org" className="text-pine-800 hover:underline">
+          <a href="mailto:info@vancortlandt.org" className="border-b border-brass-500 text-pine-800 hover:text-pine-900">
             info@vancortlandt.org
           </a>{" "}
           or call 718-601-1460. Program details from{" "}
