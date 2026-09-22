@@ -2,7 +2,7 @@
 
 Van Cortlandt Park has more than 500 adoptable benches and no single source of truth for which are adopted, by whom, for how long, and which are still available. This app is that source of truth.
 
-**Live site:** _(added after deployment)_
+**Live site:** https://bench-adoption-program-iota.vercel.app
 
 Anyone can:
 
@@ -174,5 +174,5 @@ The app runs on Vercel with the database on Turso. Both free tiers.
 
 1. Create a Turso database: `turso db create bench-adoption`, then `turso db show bench-adoption --url` and `turso db tokens create bench-adoption`.
 2. Seed it once: `DATABASE_URL=libsql://... DATABASE_AUTH_TOKEN=... npm run seed`.
-3. Import the GitHub repo in Vercel and set `DATABASE_URL`, `DATABASE_AUTH_TOKEN` and `ADMIN_TOKEN`.
-4. Every push to `main` redeploys.
+3. Create a Vercel project and set `DATABASE_URL`, `DATABASE_AUTH_TOKEN` and `ADMIN_TOKEN` (`vercel env add`).
+4. Deploy with `vercel --prod`, or connect the GitHub repo in the Vercel dashboard so every push to `main` redeploys.
