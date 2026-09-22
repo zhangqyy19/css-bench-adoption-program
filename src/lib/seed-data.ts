@@ -1,19 +1,12 @@
 import { addDays, addMonths } from "./dates";
-import type { Bench, DateString, PublicAdoption } from "./types";
+import type { AdoptionRecord } from "./service";
+import type { Bench, DateString } from "./types";
 import { ANONYMOUS_NAME } from "./validation";
 
 // Deterministic demo data: 520 benches across real areas of Van Cortlandt Park,
 // with adoptions in every state the UI has to handle. Dates are generated
 // relative to `today` so the demo always has active, expiring and past terms.
 
-export type AdoptionRecord = PublicAdoption & {
-  donorName: string;
-  donorEmail: string;
-  honoree: string | null; // who the bench is for, if the donor said
-  notes: string | null; // questions for staff; never public
-  status: "active" | "cancelled";
-  createdAt: string;
-};
 
 export const BENCH_COUNT = 520;
 
@@ -115,7 +108,8 @@ export function generateSeed(today: DateString): { benches: Bench[]; adoptions: 
       honoree: null,
       notes: null,
       status: "active",
-      createdAt: `${startDate}T12:00:00.000Z`,
+      // a reservation for the future was still made in the past
+      createdAt: `${startDate < today ? startDate : today}T12:00:00.000Z`,
     };
     adoptions.push(adoption);
     return adoption;
