@@ -25,7 +25,7 @@ export class ConflictError extends Error {
 // The JSON body the API sends for any failure, and the form reads.
 export type ApiErrorBody = {
   error: {
-    code: "invalid_input" | "not_found" | "conflict" | "server_error";
+    code: "invalid_input" | "not_found" | "conflict" | "rate_limited" | "server_error";
     message: string;
     fieldErrors?: FieldErrors;
     nextAvailableDate?: DateString;

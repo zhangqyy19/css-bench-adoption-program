@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdoption } from "@/lib/data";
 import { ConflictError, InvalidInputError, NotFoundError, type ApiErrorBody } from "@/lib/errors";
+import { clientKey, isRateLimited, recordHit } from "@/lib/rate-limit";
 import { adoptionInputSchema, toFieldErrors } from "@/lib/validation";
 
 function fail(status: number, error: ApiErrorBody["error"]) {
@@ -11,6 +12,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const benchId = Number((await params).id);
   if (!Number.isInteger(benchId)) {
     return fail(404, { code: "not_found", message: "Bench not found" });
+  }
+
+  const key = clientKey(request);
+  if (isRateLimited(key)) {
+    return fail(429, {
+      code: "rate_limited",
+      message: "Too many adoptions from this connection. Please try again later.",
+    });
   }
 
   const body = await request.json().catch(() => null);
@@ -25,6 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   try {
     const receipt = await createAdoption(benchId, parsed.data);
+    recordHit(key);
     return NextResponse.json(receipt, { status: 201 });
   } catch (error) {
     if (error instanceof NotFoundError) {
