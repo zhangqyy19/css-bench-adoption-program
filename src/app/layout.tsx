@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { EB_Garamond, Geist_Mono } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
+import { SiteNav } from "@/components/SiteNav";
 import "./globals.css";
 
 const garamond = EB_Garamond({
@@ -24,12 +25,6 @@ export const metadata: Metadata = {
     "The Van Cortlandt Park bench adoption program: see which benches are adopted, by whom, and adopt one yourself.",
 };
 
-const NAV = [
-  { href: "/", label: "The program" },
-  { href: "/benches", label: "Benches" },
-  { href: "/map", label: "Map" },
-];
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${garamond.variable} ${geistMono.variable} h-full antialiased`}>
@@ -43,17 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <span className="text-2xl">Adopt a Bench</span>
               </span>
             </Link>
-            <nav className="flex gap-6 text-lg text-pine-100">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="border-b border-transparent pb-0.5 hover:border-brass-500 hover:text-cream-50"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+            <SiteNav />
           </div>
         </header>
         <main className="flex-1">{children}</main>
