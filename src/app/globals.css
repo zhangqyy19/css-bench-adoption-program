@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-serif: var(--font-garamond), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-garamond), Georgia, serif;
+  --font-mono: var(--font-geist-mono);
+
+  /* a cream and deep-green palette */
+  --color-cream-50: #fbf8f1;
+  --color-cream-100: #f4eee0;
+  --color-cream-200: #e8dfc8;
+  --color-cream-300: #d6c9a8;
+  --color-pine-50: #eef3ee;
+  --color-pine-100: #d7e3d8;
+  --color-pine-200: #b7ccb9;
+  --color-pine-400: #6f8f74;
+  --color-pine-600: #3a5a40;
+  --color-pine-700: #2f4a34;
+  --color-pine-800: #24392a;
+  --color-pine-900: #182919;
+  --color-ink-500: #6b6353;
+  --color-ink-700: #3d372c;
+  --color-ink-900: #211e17;
+  --color-brass-500: #a8842f;
+  --color-brass-700: #7d6120;
+}
+
+body {
+  background: var(--color-cream-50);
+  color: var(--color-ink-900);
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+@layer components {
+  /* page-width container, so sections can go full-bleed between them */
+  .wrap {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  .eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-brass-700);
+  }
+
+  .rule {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--color-pine-700);
+  }
+  .rule::before,
+  .rule::after {
+    content: "";
+    flex: 1;
+    border-top: 1px solid var(--color-pine-200);
+  }
+}
+
+/* Leaflet's own chrome, restyled to match; tiles are softened to sit with the palette */
+.map-tiles {
+  filter: saturate(0.55) contrast(0.92) brightness(1.04);
+}
+.leaflet-container {
+  font-family: var(--font-serif);
+  background: var(--color-cream-100);
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--color-cream-50);
+  color: var(--color-ink-900);
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.15);
+}
+.leaflet-popup-content {
+  margin: 12px 16px;
+  line-height: 1.4;
+}
