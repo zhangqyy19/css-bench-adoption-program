@@ -6,9 +6,10 @@ import type { BenchQuery, StatusFilter } from "./types";
 
 export const MAX_TERM_MONTHS = 120;
 export const DEFAULT_TERM_MONTHS = 120; // the program's standard ten-year term
-// The plaque holds up to seven lines of text
+// The plaque holds up to seven lines and 300 characters (VCPA inquiry form)
 export const MAX_DEDICATION_LINES = 7;
-export const MAX_DEDICATION_LENGTH = 280;
+export const MAX_DEDICATION_LENGTH = 300;
+export const MAX_NOTES_LENGTH = 1000;
 export const ANONYMOUS_NAME = "Anonymous";
 
 export const adoptionInputSchema = z
@@ -17,20 +18,25 @@ export const adoptionInputSchema = z
     donorEmail: z.email("Enter a valid email address").max(254, "Email is too long"),
     anonymous: z.boolean(),
     displayName: z.string().trim().max(60, "Display name is too long"),
+    honoree: z.string().trim().max(120, "Name is too long"),
     dedication: z
       .string()
       .trim()
+      .min(1, "Enter the text for the plaque")
       .max(MAX_DEDICATION_LENGTH, `Keep the inscription under ${MAX_DEDICATION_LENGTH} characters`)
       .refine(
         (text) => text.split(/\r?\n/).length <= MAX_DEDICATION_LINES,
         `The plaque holds up to ${MAX_DEDICATION_LINES} lines`,
       ),
+    side: z.number("Choose a side").int().min(1).max(2),
     startDate: z.string().refine(isValidDate, "Choose a start date"),
     termMonths: z
       .number("Enter a length")
       .int("Use whole months")
       .min(1, "The minimum term is 1 month")
       .max(MAX_TERM_MONTHS, `The maximum term is ${MAX_TERM_MONTHS / 12} years`),
+    acceptsTimeline: z.literal(true, "Please confirm you understand the timeline"),
+    notes: z.string().trim().max(MAX_NOTES_LENGTH, "Keep questions under 1000 characters"),
   })
   .refine((input) => input.anonymous || input.displayName.length > 0, {
     path: ["displayName"],

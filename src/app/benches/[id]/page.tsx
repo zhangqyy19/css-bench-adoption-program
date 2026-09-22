@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdoptForm } from "@/components/AdoptForm";
+import { AdoptForm, type SideOption } from "@/components/AdoptForm";
 import { BenchMapLoader } from "@/components/BenchMapLoader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getBench } from "@/lib/data";
 import { formatDate, formatRemaining, formatTerm, todayInPark } from "@/lib/dates";
-import type { BenchDetail, BenchPin, PublicAdoption } from "@/lib/types";
+import { describeBench, sideLabel } from "@/lib/labels";
+import type { BenchDetail, BenchPin, DateString, PublicAdoption, SideSummary } from "@/lib/types";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -29,8 +30,8 @@ function toPin(bench: BenchDetail): BenchPin {
     lng: bench.lng,
     status: bench.status,
     expiringSoon: bench.expiringSoon,
-    adopter: bench.current?.displayName ?? null,
-    endDate: bench.current?.endDate ?? null,
+    adopter: bench.current.length > 0 ? bench.current.map((a) => a.displayName).join(" and ") : null,
+    endDate: bench.current.length > 0 ? bench.current.map((a) => a.endDate).sort()[0] : null,
   };
 }
 
@@ -41,9 +42,14 @@ export default async function BenchPage({ params }: Props) {
   if (!bench) notFound();
 
   const today = todayInPark();
-  const takenRanges = [...(bench.current ? [bench.current] : []), ...bench.upcoming].map(
-    ({ startDate, endDate }) => ({ startDate, endDate }),
-  );
+  const sideOptions: SideOption[] = bench.sideDetails.map((s) => ({
+    side: s.side,
+    nextAvailableDate: s.nextAvailableDate,
+    takenRanges: [...(s.current ? [s.current] : []), ...s.upcoming].map(({ startDate, endDate }) => ({
+      startDate,
+      endDate,
+    })),
+  }));
 
   return (
     <div className="wrap flex flex-col gap-8 py-10">
@@ -63,58 +69,19 @@ export default async function BenchPage({ params }: Props) {
             <StatusBadge status={bench.status} expiringSoon={bench.expiringSoon} />
           )}
         </div>
-        {bench.description && <p className="mt-2 text-lg text-ink-700">{bench.description}</p>}
+        <p className="mt-2 text-lg text-ink-700">
+          {describeBench(bench)}
+          {bench.description && ` · ${bench.description}`}
+        </p>
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_26rem]">
         <div className="flex flex-col gap-8">
-          <section className={card}>
-            <h2 className="eyebrow">Current adoption</h2>
-            {bench.current ? (
-              <div className="mt-3">
-                <p className="text-2xl text-pine-900">{bench.current.displayName}</p>
-                {bench.current.dedication && (
-                  <blockquote className="mt-4 border-y border-pine-200 bg-pine-50 py-4 text-center text-lg whitespace-pre-line text-pine-900 italic">
-                    {bench.current.dedication}
-                  </blockquote>
-                )}
-                <dl className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  <div>
-                    <dt className="text-sm text-ink-500">Term</dt>
-                    <dd>{formatTerm(bench.current.termMonths)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm text-ink-500">Started</dt>
-                    <dd>{formatDate(bench.current.startDate)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm text-ink-500">Ends</dt>
-                    <dd>
-                      {formatDate(bench.current.endDate)}
-                      <span className="block text-sm text-ink-500">
-                        {formatRemaining(today, bench.current.endDate)}
-                      </span>
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-            ) : (
-              <p className="mt-3 text-lg text-ink-700">
-                Nobody has adopted this bench right now.
-                {!bench.retired && " It could be yours."}
-              </p>
-            )}
-            {!bench.retired && (
-              <p className="mt-5 border-t border-cream-200 pt-4 text-ink-700">
-                {bench.nextAvailableDate === today
-                  ? "Available to adopt from today."
-                  : `Next available from ${formatDate(bench.nextAvailableDate)}. You can reserve it now.`}
-              </p>
-            )}
-          </section>
+          {bench.sideDetails.map((side) => (
+            <SideCard key={side.side} side={side} twoSided={bench.sides === 2} retired={bench.retired} today={today} />
+          ))}
 
-          <AdoptionList title="Reserved next" adoptions={bench.upcoming} />
-          <AdoptionList title="Past adopters" adoptions={bench.past} />
+          <AdoptionList title="Past adopters" adoptions={bench.past} twoSided={bench.sides === 2} />
 
           <section className={card}>
             <h2 className="eyebrow">Location</h2>
@@ -138,13 +105,7 @@ export default async function BenchPage({ params }: Props) {
 
         {!bench.retired && (
           <aside>
-            <AdoptForm
-              benchId={bench.id}
-              benchCode={bench.code}
-              today={today}
-              nextAvailableDate={bench.nextAvailableDate}
-              takenRanges={takenRanges}
-            />
+            <AdoptForm benchId={bench.id} benchCode={bench.code} today={today} sides={sideOptions} />
           </aside>
         )}
       </div>
@@ -152,7 +113,88 @@ export default async function BenchPage({ params }: Props) {
   );
 }
 
-function AdoptionList({ title, adoptions }: { title: string; adoptions: PublicAdoption[] }) {
+function SideCard({
+  side,
+  twoSided,
+  retired,
+  today,
+}: {
+  side: SideSummary;
+  twoSided: boolean;
+  retired: boolean;
+  today: DateString;
+}) {
+  const { current } = side;
+  return (
+    <section className={card}>
+      <h2 className="eyebrow">{twoSided ? `Side ${sideLabel(side.side)}` : "Current adoption"}</h2>
+      {current ? (
+        <div className="mt-3">
+          <p className="text-2xl text-pine-900">{current.displayName}</p>
+          {current.dedication && (
+            <blockquote className="mt-4 border-y border-pine-200 bg-pine-50 py-4 text-center text-lg whitespace-pre-line text-pine-900 italic">
+              {current.dedication}
+            </blockquote>
+          )}
+          <dl className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <dt className="text-sm text-ink-500">Term</dt>
+              <dd>{formatTerm(current.termMonths)}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-ink-500">Started</dt>
+              <dd>{formatDate(current.startDate)}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-ink-500">Ends</dt>
+              <dd>
+                {formatDate(current.endDate)}
+                <span className="block text-sm text-ink-500">{formatRemaining(today, current.endDate)}</span>
+              </dd>
+            </div>
+          </dl>
+        </div>
+      ) : (
+        <p className="mt-3 text-lg text-ink-700">
+          {twoSided ? "This side is not adopted right now." : "Nobody has adopted this bench right now."}
+          {!retired && " It could be yours."}
+        </p>
+      )}
+      {side.upcoming.length > 0 && (
+        <div className="mt-5 border-t border-cream-200 pt-4">
+          <p className="text-sm text-ink-500">Reserved next</p>
+          <ul className="mt-1">
+            {side.upcoming.map((a) => (
+              <li key={a.id} className="flex flex-wrap justify-between gap-x-4">
+                <span>{a.displayName}</span>
+                <span className="text-ink-500">
+                  {formatDate(a.startDate)} to {formatDate(a.endDate)} ({formatTerm(a.termMonths)})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {!retired && (
+        <p className="mt-5 border-t border-cream-200 pt-4 text-ink-700">
+          {side.nextAvailableDate === today
+            ? "Available to adopt from today."
+            : `Next available from ${formatDate(side.nextAvailableDate)}. You can reserve it now.`}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function AdoptionList({
+  title,
+  adoptions,
+  twoSided,
+}: {
+  title: string;
+  adoptions: PublicAdoption[];
+  twoSided: boolean;
+}) {
   if (adoptions.length === 0) return null;
   return (
     <section className={card}>
@@ -160,7 +202,10 @@ function AdoptionList({ title, adoptions }: { title: string; adoptions: PublicAd
       <ul className="mt-3 divide-y divide-cream-100">
         {adoptions.map((adoption) => (
           <li key={adoption.id} className="flex flex-wrap justify-between gap-x-4 gap-y-1 py-2">
-            <span>{adoption.displayName}</span>
+            <span>
+              {adoption.displayName}
+              {twoSided && <span className="text-sm text-ink-500"> · side {sideLabel(adoption.side)}</span>}
+            </span>
             <span className="text-ink-500">
               {formatDate(adoption.startDate)} to {formatDate(adoption.endDate)} ({formatTerm(adoption.termMonths)})
             </span>

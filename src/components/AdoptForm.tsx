@@ -4,24 +4,31 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { addMonths, formatDate, formatTerm, isValidDate, rangesOverlap } from "@/lib/dates";
 import type { ApiErrorBody } from "@/lib/errors";
+import { sideLabel } from "@/lib/labels";
 import type { AdoptionReceipt, DateString } from "@/lib/types";
 import {
   adoptionInputSchema,
   DEFAULT_TERM_MONTHS,
   MAX_DEDICATION_LENGTH,
   MAX_DEDICATION_LINES,
+  MAX_NOTES_LENGTH,
   MAX_TERM_MONTHS,
   toFieldErrors,
   type FieldErrors,
 } from "@/lib/validation";
 
+export type SideOption = {
+  side: number;
+  nextAvailableDate: DateString;
+  // current and upcoming adoptions on this side, so clashes are caught before submitting
+  takenRanges: { startDate: DateString; endDate: DateString }[];
+};
+
 type Props = {
   benchId: number;
   benchCode: string;
   today: DateString;
-  nextAvailableDate: DateString;
-  // current and upcoming adoptions, so clashes are caught before submitting
-  takenRanges: { startDate: DateString; endDate: DateString }[];
+  sides: SideOption[];
 };
 
 const PRESETS = [
@@ -34,20 +41,36 @@ const PRESETS = [
 const inputClass =
   "w-full border border-cream-300 bg-white px-3 py-2 outline-none focus:border-pine-600 aria-[invalid=true]:border-red-700";
 
-export function AdoptForm({ benchId, benchCode, today, nextAvailableDate, takenRanges }: Props) {
+export function AdoptForm({ benchId, benchCode, today, sides }: Props) {
   const router = useRouter();
+  // start on whichever side frees up first
+  const firstFree = [...sides].sort((a, b) => a.nextAvailableDate.localeCompare(b.nextAvailableDate))[0];
+  const [side, setSide] = useState(firstFree.side);
   const [donorName, setDonorName] = useState("");
   const [donorEmail, setDonorEmail] = useState("");
   const [anonymous, setAnonymous] = useState(false);
   const [displayName, setDisplayName] = useState("");
+  const [honoree, setHonoree] = useState("");
   const [dedication, setDedication] = useState("");
-  const [startDate, setStartDate] = useState(nextAvailableDate);
+  const [notes, setNotes] = useState("");
+  const [acceptsTimeline, setAcceptsTimeline] = useState(false);
+  const [startDate, setStartDate] = useState(firstFree.nextAvailableDate);
   const [termMonths, setTermMonths] = useState(DEFAULT_TERM_MONTHS);
 
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<AdoptionReceipt | null>(null);
+
+  const chosen = sides.find((s) => s.side === side) ?? firstFree;
+  const { nextAvailableDate, takenRanges } = chosen;
+
+  function chooseSide(next: SideOption) {
+    setSide(next.side);
+    setStartDate(next.nextAvailableDate);
+    setErrors({});
+    setFormError(null);
+  }
 
   const termIsValid = Number.isInteger(termMonths) && termMonths >= 1 && termMonths <= MAX_TERM_MONTHS;
   const endDate = isValidDate(startDate) && termIsValid ? addMonths(startDate, termMonths) : null;
@@ -65,9 +88,13 @@ export function AdoptForm({ benchId, benchCode, today, nextAvailableDate, takenR
       donorEmail,
       anonymous,
       displayName: anonymous ? "" : displayName,
+      honoree,
       dedication,
+      side,
       startDate,
       termMonths,
+      acceptsTimeline,
+      notes,
     });
     if (!parsed.success) {
       setErrors(toFieldErrors(parsed.error));
@@ -121,6 +148,12 @@ export function AdoptForm({ benchId, benchCode, today, nextAvailableDate, takenR
         <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2">
           <dt className="text-ink-500">Reference</dt>
           <dd className="font-mono text-sm">{receipt.reference}</dd>
+          {sides.length > 1 && (
+            <>
+              <dt className="text-ink-500">Side</dt>
+              <dd>Side {sideLabel(receipt.side)}</dd>
+            </>
+          )}
           <dt className="text-ink-500">Shown as</dt>
           <dd>{receipt.displayName}</dd>
           <dt className="text-ink-500">Term</dt>
@@ -146,6 +179,45 @@ export function AdoptForm({ benchId, benchCode, today, nextAvailableDate, takenR
       </p>
 
       <div className="mt-6 flex flex-col gap-5">
+        {sides.length > 1 && (
+          <fieldset>
+            <legend className="mb-1 text-ink-900">Which side of the bench?</legend>
+            <p className="mb-2 text-sm text-ink-500">An 8 ft bench carries a plaque on each side.</p>
+            <div className="grid grid-cols-2 gap-2">
+              {sides.map((option) => {
+                const free = option.nextAvailableDate <= today;
+                const active = option.side === side;
+                return (
+                  <label
+                    key={option.side}
+                    className={`cursor-pointer border p-3 ${
+                      active ? "border-pine-800 bg-pine-50" : "border-cream-300 hover:border-pine-600"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="side"
+                      value={option.side}
+                      checked={active}
+                      onChange={() => chooseSide(option)}
+                      className="sr-only"
+                    />
+                    <span className="block text-lg text-pine-900">Side {sideLabel(option.side)}</span>
+                    <span className="block text-sm text-ink-500">
+                      {free ? "Available now" : `From ${formatDate(option.nextAvailableDate)}`}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {errors.side && (
+              <p role="alert" className="mt-1 text-sm text-red-800">
+                {errors.side}
+              </p>
+            )}
+          </fieldset>
+        )}
+
         <Field id="donorName" label="Your name" error={errors.donorName}>
           <input
             id="donorName"
@@ -196,8 +268,23 @@ export function AdoptForm({ benchId, benchCode, today, nextAvailableDate, takenR
         </Field>
 
         <Field
+          id="honoree"
+          label="In honor or in memory of (optional)"
+          hint="Their name, if the bench is for someone."
+          error={errors.honoree}
+        >
+          <input
+            id="honoree"
+            value={honoree}
+            onChange={(e) => setHonoree(e.target.value)}
+            aria-invalid={Boolean(errors.honoree)}
+            className={inputClass}
+          />
+        </Field>
+
+        <Field
           id="dedication"
-          label="Plaque inscription (optional)"
+          label="Plaque text"
           hint={`${dedicationLines}/${MAX_DEDICATION_LINES} lines · ${dedication.length}/${MAX_DEDICATION_LENGTH}`}
           error={errors.dedication}
         >
@@ -211,7 +298,9 @@ export function AdoptForm({ benchId, benchCode, today, nextAvailableDate, takenR
             aria-invalid={Boolean(errors.dedication)}
             className={`${inputClass} text-center italic`}
           />
-          <p className="mt-1 text-sm text-ink-500">Up to seven lines. Fewer lines mean larger lettering.</p>
+          <p className="mt-1 text-sm text-ink-500">
+            Up to seven lines and {MAX_DEDICATION_LENGTH} characters. Fewer lines mean larger lettering.
+          </p>
         </Field>
 
         <Field id="startDate" label="Start date" error={errors.startDate}>
@@ -265,6 +354,44 @@ export function AdoptForm({ benchId, benchCode, today, nextAvailableDate, takenR
             <span className="text-ink-700">months</span>
           </div>
         </Field>
+
+        <Field
+          id="notes"
+          label="Any questions for the Alliance? (optional)"
+          hint="Only park staff can see this."
+          error={errors.notes}
+        >
+          <textarea
+            id="notes"
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            maxLength={MAX_NOTES_LENGTH}
+            aria-invalid={Boolean(errors.notes)}
+            className={inputClass}
+          />
+        </Field>
+
+        <div>
+          <label className="flex items-start gap-3 text-base text-ink-700">
+            <input
+              type="checkbox"
+              checked={acceptsTimeline}
+              onChange={(e) => setAcceptsTimeline(e.target.checked)}
+              aria-invalid={Boolean(errors.acceptsTimeline)}
+              className="mt-1.5 size-4 shrink-0 accent-pine-800"
+            />
+            <span>
+              I understand that creating and installing the plaque takes at least 6 to 8 weeks from the
+              date of submission and payment confirmation.
+            </span>
+          </label>
+          {errors.acceptsTimeline && (
+            <p role="alert" className="mt-1 text-sm text-red-800">
+              {errors.acceptsTimeline}
+            </p>
+          )}
+        </div>
 
         {endDate && !clash && (
           <p className="border-l-2 border-pine-600 bg-pine-50 px-3 py-2 text-pine-900">

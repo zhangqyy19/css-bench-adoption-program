@@ -2,6 +2,8 @@
 // Adoption ranges are half-open: startDate is inclusive, endDate is exclusive.
 export type DateString = string;
 
+export type BenchStyle = "worlds-fair" | "concrete";
+
 export type Bench = {
   id: number;
   code: string;
@@ -9,6 +11,10 @@ export type Bench = {
   description: string | null;
   lat: number;
   lng: number;
+  style: BenchStyle;
+  lengthFt: 4 | 8;
+  // an 8 ft bench has a plaque position on each side, adopted separately
+  sides: 1 | 2;
   retired: boolean;
 };
 
@@ -17,6 +23,7 @@ export type Bench = {
 export type PublicAdoption = {
   id: number;
   benchId: number;
+  side: number; // 1 or 2
   displayName: string;
   dedication: string | null;
   startDate: DateString;
@@ -26,9 +33,19 @@ export type PublicAdoption = {
 
 export type BenchStatus = "available" | "adopted";
 
+// One plaque position on a bench and what is booked on it.
+export type SideSummary = {
+  side: number;
+  current: PublicAdoption | null;
+  expiringSoon: boolean;
+  nextAvailableDate: DateString;
+  upcoming: PublicAdoption[];
+};
+
+// "available" means at least one side is free today.
 export type BenchListItem = Bench & {
   status: BenchStatus;
-  current: PublicAdoption | null;
+  current: PublicAdoption[];
   expiringSoon: boolean;
   nextAvailableDate: DateString;
 };
@@ -47,7 +64,7 @@ export type BenchPin = {
 };
 
 export type BenchDetail = BenchListItem & {
-  upcoming: PublicAdoption[];
+  sideDetails: SideSummary[];
   past: PublicAdoption[];
 };
 

@@ -9,6 +9,8 @@ import { ANONYMOUS_NAME } from "./validation";
 export type AdoptionRecord = PublicAdoption & {
   donorName: string;
   donorEmail: string;
+  honoree: string | null; // who the bench is for, if the donor said
+  notes: string | null; // questions for staff; never public
   status: "active" | "cancelled";
   createdAt: string;
 };
@@ -16,17 +18,17 @@ export type AdoptionRecord = PublicAdoption & {
 export const BENCH_COUNT = 520;
 
 const AREAS: { name: string; lat: number; lng: number; weight: number }[] = [
-  { name: "Parade Ground", lat: 40.8928, lng: -73.8962, weight: 5 },
+  { name: "Parade Ground", lat: 40.8938, lng: -73.8928, weight: 5 },
   { name: "Van Cortlandt Lake", lat: 40.8903, lng: -73.8903, weight: 5 },
-  { name: "Van Cortlandt House Museum", lat: 40.8911, lng: -73.8948, weight: 2 },
+  { name: "Van Cortlandt House Museum", lat: 40.8916, lng: -73.8938, weight: 2 },
   { name: "Putnam Trail", lat: 40.8992, lng: -73.8893, weight: 4 },
   { name: "Tibbetts Brook", lat: 40.8958, lng: -73.8908, weight: 3 },
   { name: "John Kieran Nature Trail", lat: 40.8936, lng: -73.8894, weight: 3 },
   { name: "Vault Hill", lat: 40.8978, lng: -73.8937, weight: 2 },
   { name: "Northwest Forest", lat: 40.9052, lng: -73.8952, weight: 3 },
   { name: "Old Croton Aqueduct Trail", lat: 40.9003, lng: -73.8832, weight: 4 },
-  { name: "Stadium and Pool", lat: 40.8879, lng: -73.8975, weight: 3 },
-  { name: "Southwest Playground", lat: 40.8866, lng: -73.8958, weight: 2 },
+  { name: "Stadium and Pool", lat: 40.8884, lng: -73.8958, weight: 3 },
+  { name: "Southwest Playground", lat: 40.8870, lng: -73.8948, weight: 2 },
   { name: "Allen Shandler Recreation Area", lat: 40.8932, lng: -73.8795, weight: 3 },
   { name: "Indian Field", lat: 40.8988, lng: -73.8758, weight: 3 },
   { name: "Woodlawn Playground", lat: 40.8962, lng: -73.8740, weight: 2 },
@@ -71,7 +73,7 @@ const DEDICATIONS = [
   "In memory of Coach Williams",
 ];
 
-const TERMS = [6, 12, 12, 12, 24, 24, 36, 60];
+const TERMS = [12, 24, 36, 60, 120, 120];
 
 // mulberry32: small, fast, and gives every environment the same data
 function createRandom(seed: number) {
@@ -93,7 +95,7 @@ export function generateSeed(today: DateString): { benches: Bench[]; adoptions: 
   const benches: Bench[] = [];
   const adoptions: AdoptionRecord[] = [];
 
-  const addAdoption = (benchId: number, startDate: DateString, termMonths: number) => {
+  const addAdoption = (benchId: number, side: number, startDate: DateString, termMonths: number) => {
     const firstName = pick(FIRST_NAMES);
     const lastName = pick(LAST_NAMES);
     const style = random();
@@ -102,6 +104,7 @@ export function generateSeed(today: DateString): { benches: Bench[]; adoptions: 
     const adoption: AdoptionRecord = {
       id: adoptions.length + 1,
       benchId,
+      side,
       displayName,
       dedication: random() < 0.45 ? pick(DEDICATIONS) : null,
       startDate,
@@ -109,6 +112,8 @@ export function generateSeed(today: DateString): { benches: Bench[]; adoptions: 
       termMonths,
       donorName: `${firstName} ${lastName}`,
       donorEmail: `${firstName}.${lastName}`.toLowerCase().replace(/[^a-z.]/g, "") + "@example.com",
+      honoree: null,
+      notes: null,
       status: "active",
       createdAt: `${startDate}T12:00:00.000Z`,
     };
@@ -118,6 +123,7 @@ export function generateSeed(today: DateString): { benches: Bench[]; adoptions: 
 
   for (let id = 1; id <= BENCH_COUNT; id++) {
     const area = pick(weightedAreas);
+    const lengthFt = random() < 0.4 ? 8 : 4;
     benches.push({
       id,
       code: `VCP-${String(id).padStart(4, "0")}`,
@@ -125,36 +131,42 @@ export function generateSeed(today: DateString): { benches: Bench[]; adoptions: 
       description: pick(DESCRIPTIONS),
       lat: Number((area.lat + (random() - 0.5) * 0.004).toFixed(6)),
       lng: Number((area.lng + (random() - 0.5) * 0.005).toFixed(6)),
+      style: random() < 0.6 ? "worlds-fair" : "concrete",
+      lengthFt,
+      sides: lengthFt === 8 ? 2 : 1,
       retired: id % 173 === 0,
     });
     if (id % 173 === 0) continue;
 
-    const roll = random();
-    const term = pick(TERMS);
+    // each side of the bench gets its own history
+    for (let side = 1; side <= (lengthFt === 8 ? 2 : 1); side++) {
+      const roll = random();
+      const term = pick(TERMS);
 
-    if (roll < 0.4) {
-      // Adopted, somewhere in the middle of the term
-      const start = addDays(addMonths(today, -between(0, term - 1)), -between(0, 27));
-      const current = addAdoption(id, start, term);
-      if (random() < 0.25) {
-        // an earlier adopter, back-to-back with the current one
-        const pastTerm = pick(TERMS);
-        addAdoption(id, addMonths(current.startDate, -pastTerm), pastTerm);
+      if (roll < 0.4) {
+        // Adopted, somewhere in the middle of the term
+        const start = addDays(addMonths(today, -between(0, term - 1)), -between(0, 27));
+        const current = addAdoption(id, side, start, term);
+        if (random() < 0.25) {
+          // an earlier adopter, back-to-back with the current one
+          const pastTerm = pick(TERMS);
+          addAdoption(id, side, addMonths(current.startDate, -pastTerm), pastTerm);
+        }
+        if (random() < 0.08) addAdoption(id, side, current.endDate, pick(TERMS)); // already renewed
+      } else if (roll < 0.47) {
+        // Adopted, and ending within the next two months
+        const targetEnd = addDays(today, between(3, 55));
+        addAdoption(id, side, addMonths(targetEnd, -term), term);
+      } else if (roll < 0.65) {
+        // Available now, with history
+        const end = addDays(today, -between(10, 700));
+        addAdoption(id, side, addMonths(end, -term), term);
+      } else if (roll < 0.68) {
+        // Available now, but reserved for a term that starts soon
+        addAdoption(id, side, addDays(today, between(20, 90)), term);
       }
-      if (random() < 0.08) addAdoption(id, current.endDate, pick(TERMS)); // already renewed
-    } else if (roll < 0.47) {
-      // Adopted, and ending within the next two months
-      const targetEnd = addDays(today, between(3, 55));
-      addAdoption(id, addMonths(targetEnd, -term), term);
-    } else if (roll < 0.65) {
-      // Available now, with history
-      const end = addDays(today, -between(10, 700));
-      addAdoption(id, addMonths(end, -term), term);
-    } else if (roll < 0.68) {
-      // Available now, but reserved for a term that starts soon
-      addAdoption(id, addDays(today, between(20, 90)), term);
+      // otherwise: never adopted
     }
-    // otherwise: never adopted
   }
 
   return { benches, adoptions };
